@@ -99,6 +99,11 @@ impl UdpSocketState {
                 unsafe { libc::CMSG_SPACE(mem::size_of::<libc::in6_pktinfo>() as _) as usize };
         }
 
+        if cfg!(target_os = "linux") {
+            cmsg_platform_space +=
+                unsafe { libc::CMSG_SPACE(mem::size_of::<libc::timeval>() as _) as usize };
+        }
+
         assert!(
             CMSG_LEN
                 >= unsafe { libc::CMSG_SPACE(mem::size_of::<libc::c_int>() as _) as usize }
@@ -551,7 +556,7 @@ fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> 
     Ok(1)
 }
 
-const CMSG_LEN: usize = 88;
+const CMSG_LEN: usize = 96;
 
 fn prepare_msg(
     transmit: &Transmit<'_>,
