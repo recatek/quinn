@@ -9,8 +9,11 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Mutex,
     },
-    time::{Duration, Instant},
+    time::Instant,
 };
+
+#[cfg(target_os = "linux")]
+use std::time::Duration;
 
 use socket2::SockRef;
 
