@@ -9,7 +9,7 @@ use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         Mutex,
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use socket2::SockRef;
@@ -148,6 +148,11 @@ impl UdpSocketState {
                     libc::IPV6_PMTUDISC_PROBE,
                 )?;
             }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            // TODO: Should have a way to opt in to this.
+            set_socket_option(&*io, libc::SOL_SOCKET, libc::SO_TIMESTAMP_NEW, OPTION_ON)?;
         }
         #[cfg(any(target_os = "freebsd", apple))]
         {
@@ -681,6 +686,8 @@ fn decode_recv(
     let mut dst_ip = None;
     #[allow(unused_mut)] // only mutable on Linux
     let mut stride = len;
+    #[allow(unused_mut)]
+    let mut timestamp = None;
 
     let cmsg_iter = unsafe { cmsg::Iter::new(hdr) };
     for cmsg in cmsg_iter {
@@ -725,6 +732,13 @@ fn decode_recv(
             (libc::SOL_UDP, gro::UDP_GRO) => unsafe {
                 stride = cmsg::decode::<libc::c_int, libc::cmsghdr>(cmsg) as usize;
             },
+            #[cfg(any(target_os = "linux"))]
+            (libc::SOL_SOCKET, libc::SCM_TIMESTAMP) => {
+                let timeval = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
+                let secs = Duration::from_secs(timeval.tv_sec as u64);
+                let usecs = Duration::from_micros(timeval.tv_usec as u64);
+                timestamp = Some(secs + usecs);
+            }
             _ => {}
         }
     }
@@ -759,6 +773,7 @@ fn decode_recv(
         addr,
         ecn: EcnCodepoint::from_bits(ecn_bits),
         dst_ip,
+        timestamp,
     }
 }
 
