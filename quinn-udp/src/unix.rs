@@ -740,7 +740,7 @@ fn decode_recv(
             (libc::SOL_UDP, gro::UDP_GRO) => unsafe {
                 stride = cmsg::decode::<libc::c_int, libc::cmsghdr>(cmsg) as usize;
             },
-            #[cfg(any(target_os = "linux"))]
+            #[cfg(target_os = "linux")]
             (libc::SOL_SOCKET, libc::SCM_TIMESTAMP) => {
                 let timeval = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
                 let secs = Duration::from_secs(timeval.tv_sec as u64);
