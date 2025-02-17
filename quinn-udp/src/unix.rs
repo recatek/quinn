@@ -157,11 +157,6 @@ impl UdpSocketState {
                 )?;
             }
         }
-        #[cfg(target_os = "linux")]
-        {
-            // TODO: Should have a way to opt in to this.
-            set_socket_option(&*io, libc::SOL_SOCKET, libc::SO_TIMESTAMP_NEW, OPTION_ON)?;
-        }
         #[cfg(any(target_os = "freebsd", apple))]
         {
             if is_ipv4 {
@@ -268,6 +263,17 @@ impl UdpSocketState {
     #[inline]
     pub fn may_fragment(&self) -> bool {
         self.may_fragment
+    }
+
+    /// Sets the socket to receive packet receipt timestamps.
+    #[cfg(target_os = "linux")]
+    pub fn set_enable_rx_timestamps(&self, sock: UdpSockRef<'_>, enabled: bool) -> io::Result<()> {
+        let enabled = match enabled {
+            true => OPTION_ON,
+            false => OPTION_OFF,
+        };
+
+        set_socket_option(&*sock.0, libc::SOL_SOCKET, libc::SO_TIMESTAMP_NEW, enabled)
     }
 
     /// Returns true if we previously got an EINVAL error from `sendmsg` syscall.
@@ -930,6 +936,7 @@ fn set_socket_option(
     }
 }
 
+const OPTION_OFF: libc::c_int = 0;
 const OPTION_ON: libc::c_int = 1;
 
 #[cfg(not(any(target_os = "linux", target_os = "android")))]

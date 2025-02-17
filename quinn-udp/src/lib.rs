@@ -118,7 +118,8 @@ pub struct RecvMeta {
     /// A timestamp for when the given packet was received by the operating system.
     /// Timestamping must be enabled for this information to be collected.
     ///
-    /// Populated on platforms: Linux
+    /// Populated on platforms with clock sources:
+    /// - Linux: CLOCK_REALTIME (see docs for SO_TIMESTAMP)
     #[cfg(not(wasm_browser))]
     pub timestamp: Option<Duration>,
 }
