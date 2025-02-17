@@ -700,7 +700,7 @@ fn decode_recv(
     let mut dst_ip = None;
     #[allow(unused_mut)] // only mutable on Linux
     let mut stride = len;
-    #[allow(unused_mut)]
+    #[cfg(target_os = "linux")]
     let mut timestamp = None;
 
     let cmsg_iter = unsafe { cmsg::Iter::new(hdr) };
