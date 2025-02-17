@@ -788,6 +788,7 @@ fn decode_recv(
         addr,
         ecn: EcnCodepoint::from_bits(ecn_bits),
         dst_ip,
+        #[cfg(target_os = "linux")]
         timestamp,
     }
 }
