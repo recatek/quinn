@@ -273,7 +273,7 @@ impl UdpSocketState {
             false => OPTION_OFF,
         };
 
-        set_socket_option(&*sock.0, libc::SOL_SOCKET, libc::SO_TIMESTAMP_NEW, enabled)
+        set_socket_option(&*sock.0, libc::SOL_SOCKET, libc::SO_TIMESTAMP, enabled)
     }
 
     /// Returns true if we previously got an EINVAL error from `sendmsg` syscall.
