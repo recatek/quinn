@@ -120,7 +120,7 @@ pub struct RecvMeta {
     ///
     /// Populated on platforms with clock sources:
     /// - Linux: CLOCK_REALTIME (see docs for SO_TIMESTAMP)
-    #[cfg(not(wasm_browser))]
+    #[cfg(target_os = "linux")]
     pub timestamp: Option<Duration>,
 }
 
@@ -133,7 +133,7 @@ impl Default for RecvMeta {
             stride: 0,
             ecn: None,
             dst_ip: None,
-            #[cfg(not(wasm_browser))]
+            #[cfg(target_os = "linux")]
             timestamp: None,
         }
     }

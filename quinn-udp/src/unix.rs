@@ -267,7 +267,7 @@ impl UdpSocketState {
 
     /// Sets the socket to receive packet receipt timestamps.
     #[cfg(target_os = "linux")]
-    pub fn set_enable_rx_timestamps(&self, sock: UdpSockRef<'_>, enabled: bool) -> io::Result<()> {
+    pub fn set_rx_timestamps(&self, sock: UdpSockRef<'_>, enabled: bool) -> io::Result<()> {
         let enabled = match enabled {
             true => OPTION_ON,
             false => OPTION_OFF,
@@ -749,9 +749,10 @@ fn decode_recv(
             #[cfg(target_os = "linux")]
             (libc::SOL_SOCKET, libc::SCM_TIMESTAMP) => {
                 let timeval = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
-                let secs = Duration::from_secs(timeval.tv_sec as u64);
-                let usecs = Duration::from_micros(timeval.tv_usec as u64);
-                timestamp = Some(secs + usecs);
+                timestamp = Some(Duration::new(
+                    timeval.tv_sec as u64,
+                    (timeval.tv_usec * 1000) as u32,
+                ));
             }
             _ => {}
         }
