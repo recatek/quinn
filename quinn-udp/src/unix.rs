@@ -936,6 +936,7 @@ fn set_socket_option(
     }
 }
 
+#[allow(dead_code)]
 const OPTION_OFF: libc::c_int = 0;
 const OPTION_ON: libc::c_int = 1;
 
