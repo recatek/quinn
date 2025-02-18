@@ -13,13 +13,16 @@ use std::{
 };
 
 #[cfg(target_os = "linux")]
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use socket2::SockRef;
 
 use super::{
     cmsg, log_sendmsg_error, EcnCodepoint, RecvMeta, Transmit, UdpSockRef, IO_ERROR_LOG_INTERVAL,
 };
+
+#[cfg(target_os = "linux")]
+use super::RecvTime;
 
 // Adapted from https://github.com/apple-oss-distributions/xnu/blob/8d741a5de7ff4191bf97d57b9f54c2f6d4a15585/bsd/sys/socket_private.h
 #[cfg(apple_fast)]
@@ -748,11 +751,10 @@ fn decode_recv(
             },
             #[cfg(target_os = "linux")]
             (libc::SOL_SOCKET, libc::SCM_TIMESTAMP) => {
-                let timeval = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
-                timestamp = Some(Duration::new(
-                    timeval.tv_sec as u64,
-                    (timeval.tv_usec * 1000) as u32,
-                ));
+                let tv = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
+                let duration = Duration::new(tv.tv_sec as u64, (tv.tv_usec * 1000) as u32);
+                let time = SystemTime::UNIX_EPOCH.checked_add(duration);
+                timestamp = time.map(RecvTime::Realtime);
             }
             _ => {}
         }

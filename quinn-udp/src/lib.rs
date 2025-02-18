@@ -120,8 +120,7 @@ pub struct RecvMeta {
     ///
     /// Populated on platforms with clock sources:
     /// - Linux: CLOCK_REALTIME (see docs for SO_TIMESTAMP)
-    #[cfg(target_os = "linux")]
-    pub timestamp: Option<Duration>,
+    pub timestamp: Option<RecvTime>,
 }
 
 impl Default for RecvMeta {
@@ -133,10 +132,16 @@ impl Default for RecvMeta {
             stride: 0,
             ecn: None,
             dst_ip: None,
-            #[cfg(target_os = "linux")]
             timestamp: None,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum RecvTime {
+    /// CLOCK_REALTIME-based SystemTime
+    #[cfg(target_os = "linux")]
+    Realtime(std::time::SystemTime),
 }
 
 /// An outgoing packet
