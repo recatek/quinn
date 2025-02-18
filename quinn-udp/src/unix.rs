@@ -703,7 +703,7 @@ fn decode_recv(
     let mut dst_ip = None;
     #[allow(unused_mut)] // only mutable on Linux
     let mut stride = len;
-    #[cfg(target_os = "linux")]
+    #[allow(unused_mut)] // only mutable on Linux
     let mut timestamp = None;
 
     let cmsg_iter = unsafe { cmsg::Iter::new(hdr) };
@@ -790,7 +790,6 @@ fn decode_recv(
         addr,
         ecn: EcnCodepoint::from_bits(ecn_bits),
         dst_ip,
-        #[cfg(target_os = "linux")]
         timestamp,
     }
 }
