@@ -137,7 +137,8 @@ impl Default for RecvMeta {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug)]
 pub enum RecvTime {
     /// CLOCK_REALTIME-based SystemTime
     #[cfg(target_os = "linux")]
