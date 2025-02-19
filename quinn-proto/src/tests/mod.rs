@@ -64,6 +64,7 @@ fn version_negotiate_server() {
         None,
         // Long-header packet with reserved version number
         hex!("80 0a1a2a3a 04 00000000 04 00000000 00")[..].into(),
+        None,
         &mut buf,
     );
     let Some(DatagramEvent::Response(Transmit { .. })) = event else {
@@ -110,6 +111,7 @@ fn version_negotiate_client() {
              0a1a2a3a"
         )[..]
             .into(),
+        None,
         &mut buf,
     );
     if let Some(DatagramEvent::ConnectionEvent(_, event)) = opt_event {
@@ -263,9 +265,25 @@ fn stateless_reset_limit() {
     );
     let time = Instant::now();
     let mut buf = Vec::new();
-    let event = endpoint.handle(time, remote, None, None, [0u8; 1024][..].into(), &mut buf);
+    let event = endpoint.handle(
+        time,
+        remote,
+        None,
+        None,
+        [0u8; 1024][..].into(),
+        None,
+        &mut buf,
+    );
     assert!(matches!(event, Some(DatagramEvent::Response(_))));
-    let event = endpoint.handle(time, remote, None, None, [0u8; 1024][..].into(), &mut buf);
+    let event = endpoint.handle(
+        time,
+        remote,
+        None,
+        None,
+        [0u8; 1024][..].into(),
+        None,
+        &mut buf,
+    );
     assert!(event.is_none());
     let event = endpoint.handle(
         time + endpoint_config.min_reset_interval - Duration::from_nanos(1),
@@ -273,6 +291,7 @@ fn stateless_reset_limit() {
         None,
         None,
         [0u8; 1024][..].into(),
+        None,
         &mut buf,
     );
     assert!(event.is_none());
@@ -282,6 +301,7 @@ fn stateless_reset_limit() {
         None,
         None,
         [0u8; 1024][..].into(),
+        None,
         &mut buf,
     );
     assert!(matches!(event, Some(DatagramEvent::Response(_))));
@@ -2149,6 +2169,7 @@ fn malformed_token_len() {
         None,
         None,
         hex!("8900 0000 0101 0000 1b1b 841b 0000 0000 3f00")[..].into(),
+        None,
         &mut buf,
     );
 }
@@ -2478,7 +2499,7 @@ fn single_ack_eliciting_packet_triggers_ack_after_delay() {
 
     // The ACK delay is properly calculated
     assert_eq!(pair.client.captured_packets.len(), 1);
-    let mut frames = frame::Iter::new(pair.client.captured_packets.remove(0).into())
+    let mut frames = frame::Iter::new(pair.client.captured_packets.remove(0).into(), None)
         .unwrap()
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
@@ -3197,7 +3218,7 @@ fn reject_short_idcid() {
     // Initial header that has an empty DCID but is otherwise well-formed
     let mut initial = BytesMut::from(hex!("c4 00000001 00 00 00 3f").as_ref());
     initial.resize(MIN_INITIAL_SIZE.into(), 0);
-    let event = server.handle(now, client_addr, None, None, initial, &mut buf);
+    let event = server.handle(now, client_addr, None, None, initial, None, &mut buf);
     let Some(DatagramEvent::Response(Transmit { .. })) = event else {
         panic!("expected an initial close");
     };

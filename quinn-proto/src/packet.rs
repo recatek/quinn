@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use crate::{
     coding::{self, BufExt, BufMutExt},
-    crypto, ConnectionId,
+    crypto, ConnectionId, RecvTimestamp,
 };
 
 /// Decodes a QUIC packet's invariant header
@@ -25,6 +25,7 @@ use crate::{
 pub struct PartialDecode {
     plain_header: ProtectedHeader,
     buf: io::Cursor<BytesMut>,
+    recv_time: Option<RecvTimestamp>,
 }
 
 #[allow(clippy::len_without_is_empty)]
@@ -35,6 +36,7 @@ impl PartialDecode {
         cid_parser: &(impl ConnectionIdParser + ?Sized),
         supported_versions: &[u32],
         grease_quic_bit: bool,
+        recv_time: Option<RecvTimestamp>,
     ) -> Result<(Self, Option<BytesMut>), PacketDecodeError> {
         let mut buf = io::Cursor::new(bytes);
         let plain_header =
@@ -45,13 +47,27 @@ impl PartialDecode {
             .map(|len| (buf.position() + len) as usize)
             .unwrap_or(dgram_len);
         match dgram_len.cmp(&packet_len) {
-            Ordering::Equal => Ok((Self { plain_header, buf }, None)),
+            Ordering::Equal => Ok((
+                Self {
+                    plain_header,
+                    buf,
+                    recv_time,
+                },
+                None,
+            )),
             Ordering::Less => Err(PacketDecodeError::InvalidHeader(
                 "packet too short to contain payload length",
             )),
             Ordering::Greater => {
                 let rest = Some(buf.get_mut().split_off(packet_len));
-                Ok((Self { plain_header, buf }, rest))
+                Ok((
+                    Self {
+                        plain_header,
+                        buf,
+                        recv_time,
+                    },
+                    rest,
+                ))
             }
         }
     }
@@ -116,6 +132,7 @@ impl PartialDecode {
         let Self {
             plain_header,
             mut buf,
+            recv_time,
         } = self;
 
         if let Initial(ProtectedInitialHeader {
@@ -142,6 +159,7 @@ impl PartialDecode {
                 }),
                 header_data,
                 payload: bytes,
+                recv_time,
             });
         }
 
@@ -196,6 +214,7 @@ impl PartialDecode {
             header,
             header_data: bytes.split_to(header_len).freeze(),
             payload: bytes,
+            recv_time,
         })
     }
 
@@ -222,6 +241,7 @@ pub(crate) struct Packet {
     pub(crate) header: Header,
     pub(crate) header_data: Bytes,
     pub(crate) payload: BytesMut,
+    pub(crate) recv_time: Option<RecvTimestamp>,
 }
 
 impl Packet {
@@ -238,6 +258,7 @@ pub(crate) struct InitialPacket {
     pub(crate) header: InitialHeader,
     pub(crate) header_data: Bytes,
     pub(crate) payload: BytesMut,
+    pub(crate) recv_time: Option<RecvTimestamp>,
 }
 
 impl From<InitialPacket> for Packet {
@@ -246,6 +267,7 @@ impl From<InitialPacket> for Packet {
             header: Header::Initial(x.header),
             header_data: x.header_data,
             payload: x.payload,
+            recv_time: x.recv_time,
         }
     }
 }
@@ -986,6 +1008,7 @@ mod tests {
             &FixedLengthConnectionIdParser::new(0),
             &supported_versions,
             false,
+            None,
         )
         .unwrap()
         .0;

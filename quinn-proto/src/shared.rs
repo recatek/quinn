@@ -24,6 +24,7 @@ pub(crate) struct DatagramConnectionEvent {
     pub(crate) ecn: Option<EcnCodepoint>,
     pub(crate) first_decode: PartialDecode,
     pub(crate) remaining: Option<BytesMut>,
+    pub(crate) recv_time: Option<RecvTimestamp>,
 }
 
 /// Events sent from a Connection to an Endpoint
@@ -177,4 +178,13 @@ pub(crate) struct IssuedCid {
     pub(crate) sequence: u64,
     pub(crate) id: ConnectionId,
     pub(crate) reset_token: ResetToken,
+}
+
+/// As defined in quinn-udp
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug)]
+pub enum RecvTimestamp {
+    /// CLOCK_REALTIME-based SystemTime
+    #[cfg(target_os = "linux")]
+    Realtime(std::time::SystemTime),
 }

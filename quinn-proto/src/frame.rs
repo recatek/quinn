@@ -11,8 +11,8 @@ use crate::{
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
     range_set::ArrayRangeSet,
     shared::{ConnectionId, EcnCodepoint},
-    Dir, ResetToken, StreamId, TransportError, TransportErrorCode, VarInt, MAX_CID_SIZE,
-    RESET_TOKEN_SIZE,
+    Dir, RecvTimestamp, ResetToken, StreamId, TransportError, TransportErrorCode, VarInt,
+    MAX_CID_SIZE, RESET_TOKEN_SIZE,
 };
 
 #[cfg(feature = "arbitrary")]
@@ -545,10 +545,14 @@ impl NewToken {
 pub(crate) struct Iter {
     bytes: Bytes,
     last_ty: Option<FrameType>,
+    recv_time: Option<RecvTimestamp>,
 }
 
 impl Iter {
-    pub(crate) fn new(payload: Bytes) -> Result<Self, TransportError> {
+    pub(crate) fn new(
+        payload: Bytes,
+        recv_time: Option<RecvTimestamp>,
+    ) -> Result<Self, TransportError> {
         if payload.is_empty() {
             // "An endpoint MUST treat receipt of a packet containing no frames as a
             // connection error of type PROTOCOL_VIOLATION."
@@ -561,6 +565,7 @@ impl Iter {
         Ok(Self {
             bytes: payload,
             last_ty: None,
+            recv_time,
         })
     }
 
@@ -718,6 +723,7 @@ impl Iter {
                         } else {
                             self.take_remaining()
                         },
+                        recv_time: self.recv_time,
                     })
                 } else {
                     return Err(IterErr::InvalidFrameId);
@@ -896,6 +902,8 @@ pub(crate) const RETIRE_CONNECTION_ID_SIZE_BOUND: usize = 9;
 pub struct Datagram {
     /// Payload
     pub data: Bytes,
+    /// Receive Timestamp
+    pub recv_time: Option<RecvTimestamp>,
 }
 
 impl FrameStruct for Datagram {
@@ -946,7 +954,7 @@ mod test {
     use assert_matches::assert_matches;
 
     fn frames(buf: Vec<u8>) -> Vec<Frame> {
-        Iter::new(Bytes::from(buf))
+        Iter::new(Bytes::from(buf), None)
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap()

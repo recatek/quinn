@@ -796,6 +796,7 @@ impl RecvState {
                                 meta.dst_ip,
                                 meta.ecn.map(proto_ecn),
                                 buf,
+                                meta.timestamp.map(crate::proto_recv_time),
                                 &mut response_buffer,
                             ) {
                                 Some(DatagramEvent::NewConnection(incoming)) => {

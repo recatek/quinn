@@ -22,7 +22,7 @@ use super::{
 };
 
 #[cfg(target_os = "linux")]
-use super::RecvTime;
+use super::RecvTimestamp;
 
 // Adapted from https://github.com/apple-oss-distributions/xnu/blob/8d741a5de7ff4191bf97d57b9f54c2f6d4a15585/bsd/sys/socket_private.h
 #[cfg(apple_fast)]
@@ -754,7 +754,7 @@ fn decode_recv(
                 let tv = unsafe { cmsg::decode::<libc::timeval, libc::cmsghdr>(cmsg) };
                 let duration = Duration::new(tv.tv_sec as u64, (tv.tv_usec * 1000) as u32);
                 let time = SystemTime::UNIX_EPOCH.checked_add(duration);
-                timestamp = time.map(RecvTime::Realtime);
+                timestamp = time.map(RecvTimestamp::Realtime);
             }
             _ => {}
         }

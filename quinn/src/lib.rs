@@ -126,6 +126,14 @@ fn udp_ecn(ecn: proto::EcnCodepoint) -> udp::EcnCodepoint {
     }
 }
 
+fn proto_recv_time(recv_time: udp::RecvTimestamp) -> proto::RecvTimestamp {
+    match recv_time {
+        #[cfg(target_os = "linux")]
+        udp::RecvTimestamp::Realtime(time) => proto::RecvTimestamp::Realtime(time),
+        _ => unreachable!(),
+    }
+}
+
 /// Maximum number of datagrams processed in send/recv calls to make before moving on to other processing
 ///
 /// This helps ensure we don't starve anything when the CPU is slower than the link.

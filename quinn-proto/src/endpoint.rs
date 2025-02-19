@@ -31,8 +31,8 @@ use crate::{
     },
     token::{IncomingToken, InvalidRetryTokenError, Token, TokenPayload},
     transport_parameters::{PreferredAddress, TransportParameters},
-    Duration, Instant, ResetToken, Side, Transmit, TransportConfig, TransportError, INITIAL_MTU,
-    MAX_CID_SIZE, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE,
+    Duration, Instant, RecvTimestamp, ResetToken, Side, Transmit, TransportConfig, TransportError,
+    INITIAL_MTU, MAX_CID_SIZE, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE,
 };
 
 /// The main entry point to the library
@@ -144,6 +144,7 @@ impl Endpoint {
         local_ip: Option<IpAddr>,
         ecn: Option<EcnCodepoint>,
         data: BytesMut,
+        recv_time: Option<RecvTimestamp>,
         buf: &mut Vec<u8>,
     ) -> Option<DatagramEvent> {
         // Partially decode packet or short-circuit if unable
@@ -153,6 +154,7 @@ impl Endpoint {
             &FixedLengthConnectionIdParser::new(self.local_cid_generator.cid_len()),
             &self.config.supported_versions,
             self.config.grease_quic_bit,
+            recv_time,
         ) {
             Ok((first_decode, remaining)) => DatagramConnectionEvent {
                 now,
@@ -160,6 +162,7 @@ impl Endpoint {
                 ecn,
                 first_decode,
                 remaining,
+                recv_time,
             },
             Err(PacketDecodeError::UnsupportedVersion {
                 src_cid,
@@ -234,7 +237,7 @@ impl Endpoint {
         } else if event.first_decode.initial_header().is_some() {
             // Potentially create a new connection
 
-            self.handle_first_packet(datagram_len, event, addresses, buf)
+            self.handle_first_packet(datagram_len, event, addresses, buf, recv_time)
         } else if event.first_decode.has_long_header() {
             debug!(
                 "ignoring non-initial packet for unknown connection {}",
@@ -417,6 +420,7 @@ impl Endpoint {
         event: DatagramConnectionEvent,
         addresses: FourTuple,
         buf: &mut Vec<u8>,
+        recv_time: Option<RecvTimestamp>,
     ) -> Option<DatagramEvent> {
         let dst_cid = event.first_decode.dst_cid();
         let header = event.first_decode.initial_header().unwrap();
@@ -503,6 +507,7 @@ impl Endpoint {
                 header,
                 header_data: packet.header_data,
                 payload: packet.payload,
+                recv_time,
             },
             rest: event.remaining,
             crypto,

@@ -53,7 +53,10 @@ impl Datagrams<'_> {
             return Err(SendDatagramError::Blocked(data));
         }
         self.conn.datagrams.outgoing_total += data.len();
-        self.conn.datagrams.outgoing.push_back(Datagram { data });
+        self.conn.datagrams.outgoing.push_back(Datagram {
+            data,
+            recv_time: None,
+        });
         Ok(())
     }
 

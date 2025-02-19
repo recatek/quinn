@@ -31,9 +31,9 @@ use crate::{
     },
     token::{ResetToken, Token, TokenPayload},
     transport_parameters::TransportParameters,
-    Dir, Duration, EndpointConfig, Frame, Instant, Side, StreamId, TokenStore, Transmit,
-    TransportError, TransportErrorCode, VarInt, INITIAL_MTU, MAX_CID_SIZE, MAX_STREAM_COUNT,
-    MIN_INITIAL_SIZE, TIMER_GRANULARITY,
+    Dir, Duration, EndpointConfig, Frame, Instant, RecvTimestamp, Side, StreamId, TokenStore,
+    Transmit, TransportError, TransportErrorCode, VarInt, INITIAL_MTU, MAX_CID_SIZE,
+    MAX_STREAM_COUNT, MIN_INITIAL_SIZE, TIMER_GRANULARITY,
 };
 
 mod ack_frequency;
@@ -1065,6 +1065,7 @@ impl Connection {
                 ecn,
                 first_decode,
                 remaining,
+                recv_time,
             }) => {
                 // If this packet could initiate a migration and we're a client or a server that
                 // forbids migration, drop the datagram. This could be relaxed to heuristically
@@ -1089,7 +1090,7 @@ impl Connection {
 
                 if let Some(data) = remaining {
                     self.stats.udp_rx.bytes += data.len() as u64;
-                    self.handle_coalesced(now, remote, ecn, data);
+                    self.handle_coalesced(now, remote, ecn, data, recv_time);
                 }
 
                 if was_anti_amplification_blocked {
@@ -1935,7 +1936,7 @@ impl Connection {
 
         self.process_decrypted_packet(now, remote, Some(packet_number), packet.into())?;
         if let Some(data) = remaining {
-            self.handle_coalesced(now, remote, ecn, data);
+            self.handle_coalesced(now, remote, ecn, data, None); // No timestamp for first packet
         }
         Ok(())
     }
@@ -2116,6 +2117,7 @@ impl Connection {
         remote: SocketAddr,
         ecn: Option<EcnCodepoint>,
         data: BytesMut,
+        recv_time: Option<RecvTimestamp>,
     ) {
         self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
         let mut remaining = Some(data);
@@ -2125,6 +2127,7 @@ impl Connection {
                 &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
                 &[self.version],
                 self.endpoint_config.grease_quic_bit,
+                recv_time,
             ) {
                 Ok((partial_decode, rest)) => {
                     remaining = rest;
@@ -2326,7 +2329,7 @@ impl Connection {
                 return Ok(());
             }
             State::Closed(_) => {
-                for result in frame::Iter::new(packet.payload.freeze())? {
+                for result in frame::Iter::new(packet.payload.freeze(), packet.recv_time)? {
                     let frame = match result {
                         Ok(frame) => frame,
                         Err(err) => {
@@ -2578,7 +2581,7 @@ impl Connection {
         debug_assert_ne!(packet.header.space(), SpaceId::Data);
         let payload_len = packet.payload.len();
         let mut ack_eliciting = false;
-        for result in frame::Iter::new(packet.payload.freeze())? {
+        for result in frame::Iter::new(packet.payload.freeze(), packet.recv_time)? {
             let frame = result?;
             let span = match frame {
                 Frame::Padding => continue,
@@ -2636,7 +2639,7 @@ impl Connection {
         let mut close = None;
         let payload_len = payload.len();
         let mut ack_eliciting = false;
-        for result in frame::Iter::new(payload)? {
+        for result in frame::Iter::new(payload, packet.recv_time)? {
             let frame = result?;
             let span = match frame {
                 Frame::Padding => continue,

@@ -72,7 +72,7 @@ pub use packet::{
 };
 
 mod shared;
-pub use crate::shared::{ConnectionEvent, ConnectionId, EcnCodepoint, EndpointEvent};
+pub use crate::shared::{ConnectionEvent, ConnectionId, EcnCodepoint, EndpointEvent, RecvTimestamp};
 
 mod transport_error;
 pub use crate::transport_error::{Code as TransportErrorCode, Error as TransportError};

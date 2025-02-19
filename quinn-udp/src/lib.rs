@@ -120,7 +120,7 @@ pub struct RecvMeta {
     ///
     /// Populated on platforms with clock sources:
     /// - Linux: CLOCK_REALTIME (see docs for SO_TIMESTAMP)
-    pub timestamp: Option<RecvTime>,
+    pub timestamp: Option<RecvTimestamp>,
 }
 
 impl Default for RecvMeta {
@@ -137,9 +137,10 @@ impl Default for RecvMeta {
     }
 }
 
+/// A representation of a packet receipt timestamp. Underlying type depends on packet config.
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug)]
-pub enum RecvTime {
+pub enum RecvTimestamp {
     /// CLOCK_REALTIME-based SystemTime
     #[cfg(target_os = "linux")]
     Realtime(std::time::SystemTime),
